@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOC to HTML Table Converter</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --secondary-color: #475569;
+            --success-color: #10b981;
+            --error-color: #ef4444;
+            --warning-color: #f59e0b;
+            --bg-light: #f8fafc;
+            --bg-white: #ffffff;
+            --border-color: #e2e8f0;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --code-bg: #0f172a;
+            --code-text: #e2e8f0;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        body.dark-mode {
+            --bg-light: #0f172a;
+            --bg-white: #1e293b;
+            --border-color: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --code-bg: #020617;
+            --code-text: #e2e8f0;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-primary);
+            line-height: 1.6;
+            transition: background-color 0.25s, color 0.25s;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--bg-white), rgba(37, 99, 235, 0.06));
+            padding: 22px 0;
+            box-shadow: var(--shadow-sm);
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 28px;
+        }
+
+        .header-content, .container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        h1 { color: var(--primary-color); font-size: 28px; font-weight: 750; }
+        .subtitle { color: var(--text-secondary); font-size: 14px; margin-top: 4px; }
+
+        .dark-mode-toggle {
+            background: transparent;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 9px 14px;
+            cursor: pointer;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 650;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .dark-mode-toggle:hover { border-color: var(--primary-color); background: rgba(37, 99, 235, 0.1); }
+
+        .control-panel, .output-panel, .rules-panel {
+            background-color: var(--bg-white);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 22px;
+            box-shadow: var(--shadow-md);
+            transition: background-color 0.25s;
+        }
+
+        .control-panel { margin-bottom: 24px; }
+        .rules-panel { margin-bottom: 24px; }
+
+        .form-grid { display: grid; grid-template-columns: 1fr 280px; gap: 18px; align-items: end; }
+        .form-group { margin-bottom: 18px; }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 700;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            background-color: var(--bg-white);
+            color: var(--text-primary);
+            transition: 0.2s;
+        }
+
+        textarea { min-height: 270px; font-family: Consolas, 'Courier New', monospace; font-size: 13px; resize: vertical; }
+        select { font-size: 14px; cursor: pointer; }
+        textarea:focus, select:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+
+        .button-group { display: flex; gap: 10px; flex-wrap: wrap; }
+
+        button {
+            padding: 11px 18px;
+            border: none;
+            border-radius: 9px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+        }
+
+        button:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .btn-primary { background-color: var(--primary-color); color: #fff; }
+        .btn-primary:hover { background-color: var(--primary-hover); }
+        .btn-success { background-color: var(--success-color); color: #fff; }
+        .btn-secondary { background-color: var(--secondary-color); color: #fff; }
+        .btn-outline { background-color: transparent; border: 2px solid var(--border-color); color: var(--text-primary); }
+        .btn-outline:hover { border-color: var(--primary-color); background-color: rgba(37, 99, 235, 0.1); }
+        .btn-danger { background-color: var(--error-color); color: #fff; }
+
+        .output-container { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+        .panel-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 2px solid var(--border-color); }
+        .panel-title { font-size: 18px; font-weight: 750; }
+
+        .preview-area {
+            overflow: auto;
+            max-height: 680px;
+            min-height: 420px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 16px;
+            background-color: var(--bg-light);
+        }
+
+        #htmlOutput {
+            width: 100%;
+            min-height: 420px;
+            max-height: 680px;
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            font-family: Consolas, 'Courier New', monospace;
+            font-size: 12px;
+            resize: vertical;
+            background-color: var(--code-bg);
+            color: var(--code-text);
+        }
+
+        .alert { padding: 12px 16px; border-radius: 10px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px; font-size: 14px; }
+        .alert-success { background: rgba(16, 185, 129, 0.1); border: 1px solid var(--success-color); color: var(--success-color); }
+        .alert-error { background: rgba(239, 68, 68, 0.1); border: 1px solid var(--error-color); color: var(--error-color); }
+        .alert-warning { background: rgba(245, 158, 11, 0.1); border: 1px solid var(--warning-color); color: var(--warning-color); }
+        .alert-info { background: rgba(37, 99, 235, 0.1); border: 1px solid var(--primary-color); color: var(--primary-color); }
+
+        .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+        .chip { padding: 5px 9px; border-radius: 999px; background: rgba(37, 99, 235, 0.1); color: var(--primary-color); font-size: 12px; font-weight: 700; }
+
+        .preview-area table { width: 100%; border-collapse: collapse; background: #fff; color: #000; }
+        .preview-area td { padding: 7px; border: 1px solid #000; vertical-align: middle; }
+        .preview-area ul { margin: 10px 0; padding-left: 24px; }
+        .preview-area li { margin: 4px 0; }
+
+        details { color: var(--text-secondary); }
+        summary { cursor: pointer; font-weight: 700; color: var(--text-primary); }
+        .rules-list { margin: 12px 0 0 20px; }
+        .rules-list li { margin: 6px 0; }
+
+        .copy-feedback {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background-color: var(--success-color);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 10px;
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+        }
+
+        @media (max-width: 1100px) {
+            .form-grid, .output-container { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 640px) {
+            h1 { font-size: 22px; }
+            .header-content { flex-direction: column; align-items: flex-start; }
+            .button-group { flex-direction: column; }
+            button { width: 100%; }
+            .panel-header { align-items: flex-start; flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div>
+                <h1>TOC to HTML Table Converter</h1>
+                <div class="subtitle">Paste a report TOC, select a format, and generate backend-ready table source code.</div>
+            </div>
+            <button class="dark-mode-toggle" onclick="toggleDarkMode()">
+                <span id="darkModeIcon">🌙</span>
+                <span id="darkModeText">Dark Mode</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="container">
+        <div id="alertContainer"></div>
+
+        <section class="rules-panel">
+            <details>
+                
+            </details>
+        </section>
+
+        <section class="control-panel">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="tocInput">Table of Contents (TOC)</label>
+                    <textarea id="tocInput" placeholder="Paste full TOC here..."></textarea>
+                </div>
+                <div>
+                    <div class="form-group">
+                        <label for="tableFormat">Select Table Format</label>
+                        <select id="tableFormat">
+                            <option value="emr">EMR Report</option>
+                            <option value="hc">Healthcare (HC Table)</option>
+                            <option value="au">Australia Website (AU Table)</option>
+                        </select>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn-primary" onclick="convertTOC()">Convert</button>
+                        <button class="btn-outline" onclick="loadExampleTOC()">Load Example</button>
+                        <button class="btn-secondary" onclick="undoLast()">Undo</button>
+                        <button class="btn-danger" onclick="resetAll()">Reset</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="output-container">
+            <div class="output-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Live Preview</h2>
+                    <div id="detectedSummary" class="chips"></div>
+                </div>
+                <div class="preview-area" id="previewArea">
+                    <p style="color: var(--text-secondary); text-align: center; padding: 40px;">Preview will appear here after conversion.</p>
+                </div>
+            </div>
+
+            <div class="output-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">HTML Source Code</h2>
+                    <div class="button-group" style="margin: 0;">
+                        <button class="btn-success" onclick="copyHTML()" style="padding: 8px 14px; font-size: 13px;">Copy HTML</button>
+                        <button class="btn-success" onclick="downloadHTML()" style="padding: 8px 14px; font-size: 13px;">Download</button>
+                    </div>
+                </div>
+                <textarea id="htmlOutput" placeholder="Generated HTML source code will appear here." spellcheck="false"></textarea>
+            </div>
+        </section>
+    </main>
+
+<script>
+    let historyStack = [];
+
+    function toggleDarkMode() {
+        document.body.classList.toggle('dark-mode');
+        const isDark = document.body.classList.contains('dark-mode');
+        document.getElementById('darkModeIcon').textContent = isDark ? '☀️' : '🌙';
+        document.getElementById('darkModeText').textContent = isDark ? 'Light Mode' : 'Dark Mode';
+        localStorage.setItem('tocConverterDarkMode', isDark ? 'true' : 'false');
+    }
+
+    if (localStorage.getItem('tocConverterDarkMode') === 'true') toggleDarkMode();
+
+    function saveState() {
+        historyStack.push({
+            toc: document.getElementById('tocInput').value,
+            format: document.getElementById('tableFormat').value,
+            html: document.getElementById('htmlOutput').value,
+            preview: document.getElementById('previewArea').innerHTML,
+            summary: document.getElementById('detectedSummary').innerHTML
+        });
+        if (historyStack.length > 10) historyStack.shift();
+    }
+
+    function undoLast() {
+        if (!historyStack.length) {
+            showAlert('No previous action to undo.', 'warning');
+            return;
+        }
+        const prev = historyStack.pop();
+        document.getElementById('tocInput').value = prev.toc;
+        document.getElementById('tableFormat').value = prev.format;
+        document.getElementById('htmlOutput').value = prev.html;
+        document.getElementById('previewArea').innerHTML = prev.preview;
+        document.getElementById('detectedSummary').innerHTML = prev.summary;
+        showAlert('Last action restored.', 'info');
+    }
+
+    function showAlert(message, type = 'info') {
+        const alertContainer = document.getElementById('alertContainer');
+        const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+        alertContainer.innerHTML = `<div class="alert alert-${type}"><span>${icons[type]}</span><span>${message}</span></div>`;
+        setTimeout(() => { alertContainer.innerHTML = ''; }, 6500);
+    }
+
+    function normalizeLine(line) {
+        return line
+            .replace(/\u00a0/g, ' ')
+            .replace(/[\u2013\u2014]/g, '-')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function escapeHtml(text) {
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function getNumber(line) {
+        const match = line.match(/^(\d+(?:\.\d+)*)\s+/);
+        return match ? match[1] : '';
+    }
+
+    function getTitle(line) {
+        return line.replace(/^\d+(?:\.\d+)*\s+/, '').trim();
+    }
+
+    function levelOfNumber(num) {
+        return num ? num.split('.').length : 0;
+    }
+
+    function isTopLevel(line) {
+        return levelOfNumber(getNumber(line)) === 1;
+    }
+
+    function isBadSegmentName(segment) {
+        return /stakeholder|stakeholders|overview|insight|insights|economic|risk|dynamics|value chain|competitive|company|profile|supplier|vendor|patent|funding|investment|strategic|regulatory|framework|methodology|assumption|description|snapshot|opportunities|challenges|definition|outlook/i.test(segment);
+    }
+
+    function isBadItemName(item) {
+        return /historical trend|forecast trend|historical value|forecast value|historical market|market forecast|company overview|product portfolio|certifications?|demographic reach|achievements?|financial analysis|company news|developments?|key stakeholders|stages in the value chain|swot analysis|porter|pestel|market drivers|constraints|supplier selection|market structure|vendor positioning|market share analysis|key global players|key regional players|key player strategies|overview|analysis by/i.test(item);
+    }
+
+    function normalizeSegmentName(segment) {
+        let clean = segment
+            .replace(/\s*\(\{\{.*?\}\}.*?\)\s*/g, ' ')
+            .replace(/\s*\([^)]*HISTORICAL_PERIOD_START[^)]*\)\s*/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        if (/^(country|countries|region\/country|regions\/countries|key regions\/countries)$/i.test(clean)) return 'Region';
+        if (/country|countries/i.test(clean) && /^key /i.test(clean)) return 'Region';
+        return clean;
+    }
+
+    function extractSegmentName(title) {
+        const normalized = title.replace(/\s+/g, ' ').trim();
+
+        const marketBy = normalized.match(/\bMarket(?:\s*\([^)]*\))?\s+by\s+(.+)$/i);
+        if (marketBy) return normalizeSegmentName(marketBy[1]);
+
+        const colonLandscape = normalized.match(/Market\s*:\s*([A-Za-z0-9 &\/\-]+?)\s+Landscape$/i);
+        if (colonLandscape) return normalizeSegmentName(colonLandscape[1]);
+
+        const analysisBy = normalized.match(/^Analysis\s+by\s+(.+)$/i);
+        if (analysisBy) return ''; // Avoid patent/funding analysis sections.
+
+        const looseBy = normalized.match(/\s+by\s+(.+)$/i);
+        if (looseBy && /\bMarket\b/i.test(normalized)) return normalizeSegmentName(looseBy[1]);
+
+        return '';
+    }
+
+    function addUnique(list, value) {
+        if (!value) return;
+        if (!list.some(v => v.toLowerCase() === value.toLowerCase())) list.push(value);
+    }
+
+    function parseSegments(lines) {
+        const segments = [];
+        const segmentData = {};
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const number = getNumber(line);
+            if (!number) continue;
+
+            const title = getTitle(line);
+            let segment = extractSegmentName(title);
+            if (!segment || isBadSegmentName(segment)) continue;
+
+            const parentLevel = levelOfNumber(number);
+            const children = [];
+
+            for (let j = i + 1; j < lines.length; j++) {
+                const childLine = lines[j];
+                const childNumber = getNumber(childLine);
+                if (!childNumber) continue;
+
+                const childLevel = levelOfNumber(childNumber);
+                if (childLevel <= parentLevel) break;
+
+                if (childLevel === parentLevel + 1) {
+                    const childTitle = getTitle(childLine);
+                    if (!isBadItemName(childTitle)) addUnique(children, childTitle);
+                }
+            }
+
+            addUnique(segments, segment);
+            if (!segmentData[segment]) segmentData[segment] = [];
+            children.forEach(child => addUnique(segmentData[segment], child));
+        }
+
+        return { segments, segmentData };
+    }
+
+    function isCompanyHeading(title) {
+        return /^Company Profiles?$/i.test(title) || /^Supplier Landscape$/i.test(title) || /^Competitive Landscape$/i.test(title);
+    }
+
+    function isNoiseCompanyTitle(title) {
+        return /company profiles?|company overview|product portfolio|certifications?|demographic reach|achievements?|financial analysis|company news|developments?|supplier selection|key .*players|key player strategies|market structure|vendor positioning|market share analysis|prospective leaders|niche leaders|disruptors|top 5 companies|overview|potential distributors|parameters|distribution partner|key vendors/i.test(title);
+    }
+
+    function looksLikeCompanyTitle(title) {
+        if (!title || title.length < 2) return false;
+        if (isNoiseCompanyTitle(title)) return false;
+        if (/^(others)$/i.test(title)) return true;
+        if (/\b(Inc\.?|Corporation|Corp\.?|Company|Co\.?|Ltd\.?|Limited|PLC|plc|AG|SE|GmbH|N\.V\.|LLC|LLP|Pty|S\.A\.|Group|Holdings|Laboratories|Medtronic|Abbott|Stryker|Olympus|Boston Scientific|Intuitive Surgical|Zimmer Biomet|Smith & Nephew|CLARK|Crown Equipment|Komatsu|Toyota Material Handling|Hangcha)\b/i.test(title)) return true;
+        if (/^[A-Z][A-Za-z0-9&.,'()\- ]+$/.test(title) && title.split(' ').length <= 6) return true;
+        return false;
+    }
+
+    function parseCompanies(lines) {
+        const companies = [];
+
+        for (let i = 0; i < lines.length; i++) {
+            const title = getTitle(lines[i]);
+            if (!/^Company Profiles?$/i.test(title)) continue;
+
+            const profileNo = getNumber(lines[i]);
+            const profileLevel = levelOfNumber(profileNo);
+
+            for (let j = i + 1; j < lines.length; j++) {
+                const num = getNumber(lines[j]);
+                if (!num) continue;
+
+                const lvl = levelOfNumber(num);
+                if (lvl <= profileLevel) break;
+
+                if (lvl === profileLevel + 1) {
+                    const company = getTitle(lines[j]);
+                    if (looksLikeCompanyTitle(company)) addUnique(companies, company);
+                }
+            }
+        }
+
+        // Healthcare / HC pattern: companies are direct children under Supplier Landscape, usually after vendor/market share rows.
+        if (companies.length === 0) {
+            for (let i = 0; i < lines.length; i++) {
+                const title = getTitle(lines[i]);
+                if (!/^Supplier Landscape$/i.test(title)) continue;
+
+                const supplierLevel = levelOfNumber(getNumber(lines[i]));
+                for (let j = i + 1; j < lines.length; j++) {
+                    const num = getNumber(lines[j]);
+                    if (!num) continue;
+
+                    const lvl = levelOfNumber(num);
+                    if (lvl <= supplierLevel) break;
+
+                    if (lvl === supplierLevel + 1) {
+                        const candidate = getTitle(lines[j]);
+                        if (looksLikeCompanyTitle(candidate)) addUnique(companies, candidate);
+                    }
+                }
+            }
+        }
+
+        if (companies.length > 0 && !companies.some(c => /^others$/i.test(c))) companies.push('Others');
+        return companies;
+    }
+
+    function parseTOC(tocText) {
+        const lines = tocText.split('\n').map(normalizeLine).filter(Boolean);
+        const { segments, segmentData } = parseSegments(lines);
+        const companies = parseCompanies(lines);
+        return { lines, segments, segmentData, companies };
+    }
+
+    function buildList(items) {
+        if (!items || !items.length) return '<p>&nbsp;</p>';
+        return `<ul>\n${items.map(item => `\t\t\t\t<li>${escapeHtml(item)}</li>`).join('\n')}\n\t\t\t</ul>`;
+    }
+
+    function buildBreakupRows(segments, segmentData) {
+        return segments.map(segment => `<tr>\n\t\t\t<td><strong>Breakup by ${escapeHtml(segment)}</strong></td>\n\t\t\t<td>\n\t\t\t${buildList(segmentData[segment] || [])}\n\t\t\t</td>\n\t\t</tr>`).join('\n\t\t');
+    }
+
+    function getMarketDynamics(format) {
+        if (format === 'hc') {
+            return `<ul>\n\t\t\t\t<li>Market Drivers and Constraints</li>\n\t\t\t\t<li>SWOT Analysis</li>\n\t\t\t\t<li>PESTEL Analysis</li>\n\t\t\t\t<li>Porter&rsquo;s Five Forces Model&nbsp;</li>\n\t\t\t\t<li>Key Demand Indicators</li>\n\t\t\t\t<li>Key Price Indicators</li>\n\t\t\t\t<li>Industry Events, Initiatives, and Trends&nbsp;</li>\n\t\t\t\t<li>Value Chain Analysis</li>\n\t\t\t</ul>`;
+        }
+        return `<ul>\n\t\t\t\t<li>SWOT&nbsp;Analysis</li>\n\t\t\t\t<li>Porter&#39;s Five Forces&nbsp;Analysis</li>\n\t\t\t\t<li>Key Indicators for Demand</li>\n\t\t\t\t<li>Key Indicators for Price</li>\n\t\t\t</ul>`;
+    }
+
+    function getLandscapeRow(format) {
+        if (format === 'hc') {
+            return `<tr>\n\t\t\t<td><strong>Supplier Landscape</strong></td>\n\t\t\t<td>\n\t\t\t<ul>\n\t\t\t\t<li>Market Structure</li>\n\t\t\t\t<li>Company Profiles\n\t\t\t\t<ul>\n\t\t\t\t\t<li>Financial Analysis</li>\n\t\t\t\t\t<li>Product Portfolio</li>\n\t\t\t\t\t<li>Demographic Reach and Achievements</li>\n\t\t\t\t\t<li>Company News and Developments</li>\n\t\t\t\t\t<li>Certifications</li>\n\t\t\t\t</ul>\n\t\t\t\t</li>\n\t\t\t</ul>\n\t\t\t</td>\n\t\t</tr>`;
+        }
+
+        return `<tr>\n\t\t\t<td><strong>Competitive Landscape</strong></td>\n\t\t\t<td>\n\t\t\t<ul>\n\t\t\t\t<li>Supplier Selection</li>\n\t\t\t\t<li>Key Global Players</li>\n\t\t\t\t<li>Key Regional Players</li>\n\t\t\t\t<li>Key Player Strategies</li>\n\t\t\t\t<li>Company Profiles</li>\n\t\t\t</ul>\n\t\t\t</td>\n\t\t</tr>`;
+    }
+
+    function buildTable(format, parsed) {
+        const { segments, segmentData, companies } = parsed;
+        const breakupRows = buildBreakupRows(segments, segmentData);
+        const companiesRow = companies.length ? `\n\t\t<tr>\n\t\t\t<td><strong>Companies Covered</strong></td>\n\t\t\t<td>\n\t\t\t${buildList(companies)}\n\t\t\t</td>\n\t\t</tr>` : '';
+
+        return `<table border="1" cellpadding="1" cellspacing="1">\n\t<tbody>\n\t\t<tr>\n\t\t\t<td><strong>REPORT FEATURES</strong></td>\n\t\t\t<td><strong>DETAILS</strong></td>\n\t\t</tr>\n\t\t<tr>\n\t\t\t<td><strong>Base Year</strong></td>\n\t\t\t<td>{{BASE_YEAR}}</td>\n\t\t</tr>\n\t\t<tr>\n\t\t\t<td><strong>Historical Period</strong></td>\n\t\t\t<td>{{HISTORICAL_PERIOD_START}}-{{HISTORICAL_PERIOD_END}}</td>\n\t\t</tr>\n\t\t<tr>\n\t\t\t<td><strong>Forecast Period</strong></td>\n\t\t\t<td>{{FORECAST_PERIOD_START}}-{{FORECAST_PERIOD_END}}</td>\n\t\t</tr>\n\t\t<tr>\n\t\t\t<td><strong>Scope of the Report</strong></td>\n\t\t\t<td>\n\t\t\t<p>Historical and Forecast Trends, Industry Drivers and Constraints, Historical and Forecast Market Analysis by Segment:</p>\n\n\t\t\t${buildList(segments)}\n\t\t\t</td>\n\t\t</tr>\n\t\t${breakupRows}\n\t\t<tr>\n\t\t\t<td><strong>Market Dynamics</strong></td>\n\t\t\t<td>\n\t\t\t${getMarketDynamics(format)}\n\t\t\t</td>\n\t\t</tr>\n\t\t${getLandscapeRow(format)}${companiesRow}\n\t</tbody>\n</table>`;
+    }
+
+    function loadExampleTOC() {
+        saveState();
+        const format = document.getElementById('tableFormat').value;
+        let exampleTOC = '';
+
+        if (format === 'hc') {
+            exampleTOC = `1 Preface
+1.1 Objectives of the Study
+1.2 Key Assumptions
+1.3 Report Coverage - Key Segmentation and Scope
+1.4 Research Methodology
+2 Executive Summary
+3 Minimally Invasive Surgery Devices Market Overview
+4 United States Minimally Invasive Surgery Devices Market Landscape
+4.1 United States Minimally Invasive Surgery Devices Market: Developers Landscape
+4.1.1 Analysis by Year of Establishment
+4.1.2 Analysis by Company Size
+4.1.3 Analysis by Region
+4.2 United States Minimally Invasive Surgery Devices Market: Product Landscape
+4.2.1 Analysis by Product Type
+4.2.2 Analysis by Application
+5 United States Minimally Invasive Surgery Devices Market Dynamics
+6 United States Minimally Invasive Surgery Devices Market Segmentation ({{HISTORICAL_PERIOD_START}}-{{FORECAST_PERIOD_END}})
+6.1 United States Minimally Invasive Surgery Devices Market ({{HISTORICAL_PERIOD_START}}-{{FORECAST_PERIOD_END}}) by Product Type
+6.1.1 Handheld Instruments
+6.1.2 Guiding Devices
+6.1.2.1 Guiding Catheters
+6.1.2.2 Guidewires
+6.1.3 Electrosurgical Devices
+6.1.4 Endoscopic Devices
+6.1.5 Others
+6.2 United States Minimally Invasive Surgery Devices Market ({{HISTORICAL_PERIOD_START}}-{{FORECAST_PERIOD_END}}) by Application
+6.2.1 Aesthetics
+6.2.2 Cardiovascular
+6.2.3 Gastrointestinal
+6.2.4 Others
+6.3 United States Minimally Invasive Surgery Devices Market ({{HISTORICAL_PERIOD_START}}-{{FORECAST_PERIOD_END}}) by End User
+6.3.1 Hospitals
+6.3.2 Ambulatory Surgical Centers (ASCs)
+6.3.3 Specialty Clinics
+6.3.4 Others
+11 Supplier Landscape
+11.1 Vendor Positioning Analysis
+11.2 Market Share Analysis, Top 5 Companies
+11.3 Abbott
+11.3.1 Financial Analysis
+11.3.2 Product Portfolio
+11.4 Medtronic plc
+11.4.1 Financial Analysis
+11.4.2 Product Portfolio
+11.5 Boston Scientific Corporation
+11.5.1 Financial Analysis
+11.5.2 Product Portfolio`;
+        } else if (format === 'au') {
+            exampleTOC = `10 Australia Forklift Market by Tonnage Capacity
+10.1 Below 5 Ton
+10.1.1 Historical Trend ({{HISTORICAL_PERIOD_START}}-{{HISTORICAL_PERIOD_END}})
+10.2 6-30 Ton
+10.3 Above 30 Ton
+11 Australia Forklift Market by Class
+11.1 Class 1
+11.2 Class 2
+11.3 Class 3
+11.4 Class 4/5
+12 Australia Forklift Market by Power Source
+12.1 ICE
+12.2 Electric
+13 Australia Forklift Market by Product Type
+13.1 Counterbalance
+13.2 Warehouse
+14 Australia Forklift Market by Application
+14.1 Food and Beverage
+14.2 Third Part Logistics
+14.3 Automotive
+14.4 Healthcare
+14.5 Others
+15 Australia Forklift Market by Region
+15.1 New South Wales
+15.2 Victoria
+15.3 Queensland
+15.4 Australian Capital Territory
+15.5 Western Australia
+15.6 Others
+17 Competitive Landscape
+17.1 Market Structure
+17.2 Company Profile
+17.2.1 CLARK
+17.2.1.1 Company Overview
+17.2.2 Crown Equipment Corporation
+17.2.2.1 Company Overview
+17.2.3 Komatsu Forklift Australia Pty Ltd
+17.2.4 Toyota Material Handling Australia
+17.2.5 Hangcha Australia
+17.2.6 Others`;
+        } else {
+            exampleTOC = `1 Executive Summary
+2 Market Overview and Stakeholder Insights
+2.1 Key Initiatives by Stakeholders
+5 Asia Pacific Acetic Anhydride Market Analysis
+6 Japan Acetic Anhydride Market by Application
+6.1 Cellulose Acetate Flakes
+6.1.1 Historical Trend ({{HISTORICAL_PERIOD_START}}-{{HISTORICAL_PERIOD_END}})
+6.2 Pharmaceuticals
+6.3 TAED
+6.4 Others
+7 Japan Acetic Anhydride Market by Region
+7.1 Kanto
+7.1.1 Historical Trend ({{HISTORICAL_PERIOD_START}}-{{HISTORICAL_PERIOD_END}})
+7.2 Kansai
+7.3 Chubu
+7.4 Others
+8 Market Dynamics
+9 Value Chain Analysis
+9.1 Key Stakeholders
+10 Competitive Landscape
+10.1 Supplier Selection
+10.2 Key Japan Players
+10.3 Key Regional Players
+10.4 Key Player Strategies
+10.5 Company Profile
+10.5.1 Kanto Chemical Co. Inc.
+10.5.1.1 Company Overview
+10.5.2 Junsei Chemical Co.,Ltd.
+10.5.2.1 Company Overview
+10.5.3 Kokusan Chemical Co., Ltd.
+10.5.4 Celanese Corporation
+10.5.5 Sahara International Petrochemical Company
+10.5.6 Eastman Chemical Company
+10.5.7 Jubilant Ingrevia Limited
+10.5.8 Daicel Corporation
+10.5.9 PetroChina Company Limited
+10.5.10 Saudi International Petrochemical Company (Sipchem)
+10.5.11 Others`;
+        }
+
+        document.getElementById('tocInput').value = exampleTOC;
+        showAlert('Example TOC loaded for the selected format.', 'success');
+    }
+
+    function resetAll() {
+        saveState();
+        document.getElementById('tocInput').value = '';
+        document.getElementById('htmlOutput').value = '';
+        document.getElementById('detectedSummary').innerHTML = '';
+        document.getElementById('previewArea').innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 40px;">Preview will appear here after conversion.</p>';
+        showAlert('All fields have been reset.', 'info');
+    }
+
+    function convertTOC() {
+        const tocInput = document.getElementById('tocInput').value.trim();
+        const format = document.getElementById('tableFormat').value;
+
+        if (!tocInput) {
+            showAlert('Please paste a TOC before converting.', 'warning');
+            return;
+        }
+
+        saveState();
+
+        try {
+            const parsed = parseTOC(tocInput);
+
+            if (parsed.segments.length === 0) {
+                document.getElementById('htmlOutput').value = '';
+                document.getElementById('previewArea').innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 40px;">No preview available.</p>';
+                document.getElementById('detectedSummary').innerHTML = '';
+                showAlert('No segments detected. Please check whether the TOC has headings like Market by Product, Market by Application, or segmentation lines by Product Type.', 'error');
+                return;
+            }
+
+            const html = buildTable(format, parsed);
+            document.getElementById('htmlOutput').value = html;
+            document.getElementById('previewArea').innerHTML = html;
+            document.getElementById('detectedSummary').innerHTML = `<span class="chip">Segments: ${parsed.segments.length}</span><span class="chip">Companies: ${parsed.companies.length}</span>`;
+
+            const companyNote = parsed.companies.length ? '' : ' Companies Covered row removed because no company profile block was detected.';
+            showAlert(`Conversion successful. Detected ${parsed.segments.length} segment(s) and ${parsed.companies.length} company item(s).${companyNote}`, parsed.companies.length ? 'success' : 'warning');
+        } catch (error) {
+            showAlert('Conversion failed: ' + error.message, 'error');
+            console.error(error);
+        }
+    }
+
+    async function copyHTML() {
+        const htmlOutput = document.getElementById('htmlOutput').value;
+        if (!htmlOutput.trim()) {
+            showAlert('No HTML to copy. Please convert a TOC first.', 'warning');
+            return;
+        }
+
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(htmlOutput);
+            } else {
+                const textarea = document.getElementById('htmlOutput');
+                textarea.focus();
+                textarea.select();
+                document.execCommand('copy');
+            }
+            const feedback = document.createElement('div');
+            feedback.className = 'copy-feedback';
+            feedback.textContent = 'HTML copied to clipboard';
+            document.body.appendChild(feedback);
+            setTimeout(() => feedback.remove(), 2500);
+        } catch (error) {
+            showAlert('Copy failed. Please select the code manually and copy.', 'error');
+        }
+    }
+
+    function downloadHTML() {
+        const htmlOutput = document.getElementById('htmlOutput').value;
+        if (!htmlOutput.trim()) {
+            showAlert('No HTML to download. Please convert a TOC first.', 'warning');
+            return;
+        }
+
+        const blob = new Blob([htmlOutput], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `toc-table-${Date.now()}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showAlert('HTML file downloaded.', 'success');
+    }
+
+    document.getElementById('htmlOutput').addEventListener('input', function () {
+        document.getElementById('previewArea').innerHTML = this.value || '<p style="color: var(--text-secondary); text-align: center; padding: 40px;">Preview will appear here after conversion.</p>';
+    });
+</script>
+</body>
+</html>
